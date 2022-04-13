@@ -13,13 +13,11 @@ var d,
 var currentdate = new Date();
 var utc = currentdate.getTime() + currentdate.getTimezoneOffset() * 60000;
 var datetime = new Date(utc + 3600000 * "-4.0");
-var mySet1 = [];
-
 current_d = datetime.getDate().toString();
 current_m = (datetime.getMonth() + 1).toString();
 current_y = datetime.getFullYear().toString();
 current_t = datetime.getHours().toString();
-
+const mySet1=[]
 current_slot = "00";
 if (current_t >= 0 && current_t <= 5) {
   current_slot = "00";
@@ -31,10 +29,10 @@ if (current_t >= 0 && current_t <= 5) {
   current_slot = "18";
 }
 
-current_m = "4";
+// current_m = "4";
 
-// current_d = "14";
-// current_m = "3";
+// current_d = "11";
+// current_m = "4";
 // current_slot = "12";
 // current_t = "12";
 
@@ -169,14 +167,6 @@ var products = (function () {
    *     {foo: "あ", bar: "い"}
    */
 
-  //  function UrlExists(url)
-  //  {
-  //      var http = new XMLHttpRequest();
-  //      http.open('HEAD', url, false);
-  //      http.send();
-  //      return http.status!=404;
-  //  }
-
   function localize(table) {
     return function (langCode) {
       var result = {};
@@ -190,21 +180,13 @@ var products = (function () {
   var file = null;
 
   function gfs1p0degPath(type, year, month, day, slot) {
-    month = "4";
     console.log("gfs called");
 
-    // if (type === "currents") {
-    //   console.log("[Currents]");
-    //   return `./current/current.json`;
-    // }
-
-    let Slot_map = { "00": 1, "06": 2, 12: 3, 18: 4 };
+    let Slot_map = { "00": 1, "06": 2, "12": 3, "18": 4 };
     let days_diff = day - current_d;
 
     let hours_to_be_added =
       days_diff * 24 + (Slot_map[slot] - Slot_map[current_slot]) * 6;
-
-    console.log("[Day diff]", days_diff);
 
     if (parseInt(hours_to_be_added) < 100) {
       hours_to_be_added = "0" + hours_to_be_added;
@@ -245,48 +227,59 @@ var products = (function () {
     );
 
     if (type === "wind") {
-      return `./${type}/${month}_${data_day}_${data_slot}_${hours_to_be_added}_${type}.json`;
-    } else if (type === "wave") {
-      JSZipUtils.getBinaryContent(
-        `./${type}/${month}_${data_day}_${data_slot}_${hours_to_be_added}_${type}.zip`,
-        function (err, data) {
-          if (err) {
-            throw err; // or handle err
-          }
+      let xhr = new XMLHttpRequest();
+      // xhr.open("GET", "./wave.json.gz", false);
+      // xhr.open("GET", `./wind/${month}_${data_day}_${data_slot}_${hours_to_be_added}_wind.gz`, false);
+      xhr.open("GET", `./data/weather/wind/4_13_06_000_wind.gz`, false);
+      xhr.overrideMimeType("text/plain; charset=x-user-defined");
+      xhr.send();
 
-          JSZip.loadAsync(data).then(function (zip) {
-            Object.keys(zip.files).forEach(function (filename) {
-              zip.files[filename].async("string").then(function (fileData) {
-                console.log(JSON.parse(fileData));
-                file = JSON.parse(fileData); // These are your file contents
-              });
-            });
-          });
-        }
-      );
-    } else {
-      JSZipUtils.getBinaryContent(
-        `./current/current.zip`,
-        function (err, data) {
-          if (err) {
-            throw err; // or handle err
-          }
+      var byteArray = [];
 
-          JSZip.loadAsync(data).then(function (zip) {
-            Object.keys(zip.files).forEach(function (filename) {
-              zip.files[filename].async("string").then(function (fileData) {
-                console.log(JSON.parse(fileData));
-                file = JSON.parse(fileData); // These are your file contents
-              });
-            });
-          });
-        }
-      );
+      for (var i = 0; i < xhr.responseText.length; ++i) { 
+        byteArray.push(xhr.responseText.charCodeAt(i) & 0xff);
+      }
+
+      file = pako.ungzip(byteArray, { to: "string" });
+      file = JSON.parse(file);
+    } 
+    else if (type === "wave") {
+
+      let xhr = new XMLHttpRequest();
+    //   xhr.open("GET", "./wave.json.gz", false);
+      // xhr.open("GET", `./wave/${month}_${data_day}_${data_slot}_${hours_to_be_added}_wave.gz`, false);
+      xhr.open("GET",  `./data/weather/wave/4_13_06_000_wave.gz`, false);
+      xhr.overrideMimeType("text/plain; charset=x-user-defined");
+      xhr.send();
+
+      var byteArray = [];
+
+      for (var i = 0; i < xhr.responseText.length; ++i) { 
+        byteArray.push(xhr.responseText.charCodeAt(i) & 0xff);
+      }
+
+      file = pako.ungzip(byteArray, { to: "string" });
+      file = JSON.parse(file);
+    } 
+    else {
+
+      let xhr = new XMLHttpRequest();
+      // xhr.open("GET", "./current1.gz", false);
+      xhr.open("GET", `./current/current.gz`, false);
+      xhr.overrideMimeType("text/plain; charset=x-user-defined");
+      xhr.send();
+
+      var byteArray = [];
+
+      for (var i = 0; i < xhr.responseText.length; ++i) {
+        byteArray.push(xhr.responseText.charCodeAt(i) & 0xff);
+      }
+
+      file = pako.ungzip(byteArray, { to: "string" });
+      file = JSON.parse(file);
+
     }
-
-    // return `./${type}/${month}_${data_day}_${data_slot}_${hours_to_be_added}_${type}.json`;
-
-    return "./temp.json";
+    return "./temp.json";       // for loadJSON (in micro.js) verification
   }
 
   var FACTORIES = {
@@ -309,14 +302,12 @@ var products = (function () {
             },
           }),
 
-          // paths: [gfs1p0degPath("wind", y, m, d, slot)],
-          paths: ["./data/weather/wind/3_14_12_000_wind.json"],
+          paths: [gfs1p0degPath("wind", y, m, d, slot)],
+          // paths: ["./wind/3_14_12_000_wind.json"],
 
           date: gfsDate(attr),
 
-          builder: function (file) {
-            console.log("[file]", file);
-
+          builder: function () {
             var uData = file[2].data,
               vData = file[3].data;
             return {
@@ -380,12 +371,12 @@ var products = (function () {
             field: "vector",
             type: "waves",
             description: localize({
-              name: { en: "Peak ${type} Period", ja: "海流" },
+              name: { en: `Peak Waves Period`, ja: "海流" },
               qualifier: { en: " ", ja: " @ 地上" },
             }),
             // paths: ["./wave/3_14_12_000_wave.json"],
-            paths: ["./data/weather/wave/3_14_12_000_wave.json"],
-            // paths: [gfs1p0degPath("wave", y, m, d, slot)],
+            // paths: ["./data/programming.json"],
+            paths: [gfs1p0degPath("wave", y, m, d, slot)],
 
             date: oscarDate(catalog, attr),
             navigate: function (step) {
@@ -393,7 +384,6 @@ var products = (function () {
             },
 
             builder: function () {
-              console.log("[Waves file]", file);
               var uData = file[0].data,
                 vData = file[1].data;
               height = file[2].data;
@@ -978,7 +968,6 @@ var products = (function () {
    *
    */
   function buildGrid(builder) {
-    console.log("[buildGrid]");
     // var builder = createBuilder(data);
 
     var header = builder.header;
@@ -1059,7 +1048,6 @@ var products = (function () {
   }
 
   function productsFor(attributes) {
-    console.log("[products for]");
     var attr = _.clone(attributes),
       results = [];
     _.values(FACTORIES).forEach(function (factory) {
@@ -1135,9 +1123,11 @@ var forecastednum = 0;
       total = REMAINING.length;
     return {
       status: function (msg) {
+        console.log("[msg]", msg);
         return s.classed("bad") ? s : s.text(msg); // errors are sticky until reset
       },
       error: function (err) {
+        console.log("[error]", err);
         var msg = err.status ? err.status + " " + err.message : err;
         switch (err.status) {
           case -1:
@@ -1180,11 +1170,7 @@ var forecastednum = 0;
   var fieldAgent = newAgent(); // the interpolated wind vector field
   var animatorAgent = newAgent(); // the wind animator
   var overlayAgent = newAgent(); // color overlay over the animation
-  
-  
-  //function z(evt){ if(!this.isMulti) {  var originalY=this.parent.mousePosition(evt).y; this.mouse_drag_y-0.1*evt.wheelDelta; this.parent.doc.onWheel(that.gl,this.mouse_drag_x,this.mouse_drag_y,originalY); this.parent.doc.needRender=true; evt.preventDefault(); evt.stopPropagation(); }}
 
-  
   /**
    * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
    * current globe's projection, and emits events so other page components can react to these move operations.
@@ -1331,11 +1317,13 @@ var forecastednum = 0;
       .on("zoomstart", function () {
         op = op || newOp(d3.mouse(this), zoom.scale()); // a new operation begins
       })
+
       .on("zoom", function () {
         var currentMouse = d3.mouse(this),
           currentScale = d3.event.scale;
 
         op = op || newOp(currentMouse, 1); // Fix bug on some browsers where zoomstart fires out of order.
+
         if (op.type === "click" || op.type === "spurious") {
           var distanceMoved = µ.distance(currentMouse, op.startMouse);
 
@@ -1347,8 +1335,8 @@ var forecastednum = 0;
 
           dispatch.trigger("moveStart");
           op.type = "drag";
-        } else {
         }
+
         if (currentScale != op.startScale) {
           op.type = "zoom"; // whenever a scale change is detected, (stickily) switch to a zoom operation
         }
@@ -1360,6 +1348,7 @@ var forecastednum = 0;
         );
         dispatch.trigger("move");
       })
+
       .on("zoomend", function () {
         op.manipulator.end();
         // d3.select("#insert_point_blank").style("display", "none");
@@ -1440,7 +1429,6 @@ var forecastednum = 0;
    */
   function buildMesh(resource) {
     var cancel = this.cancel;
-    // report.status("Downloading...");
     return µ.loadJson(resource).then(function (topo) {
       if (cancel.requested) return null;
       log.time("building meshes");
@@ -1488,9 +1476,8 @@ var forecastednum = 0;
 
   function buildGrids() {
     report.status("Downloading...");
+    report.error("")
     log.time("build grids");
-
-    console.log("[Build grids]");
 
     // UNDONE: upon failure to load a product, the unloaded product should still be stored in the agent.
     //         this allows us to use the product for navigation and other state.
@@ -3199,6 +3186,14 @@ var forecastednum = 0;
 
           var p = { x: point[0], y: point[1] };
 
+          var tip = d3	
+              .tip()	
+              .attr("class", "d3-tip")	
+              .offset([-10, 0])	
+              .html(function () {	
+                return weatherText;	
+              });	
+
           if (timeselected > 0) {
             d3.select("#dot1").remove();
             d3.select("#foreground")
@@ -3215,69 +3210,38 @@ var forecastednum = 0;
               .style("fill", "white")
               .call(draggerWeather);
 
-            var tip = d3
-              .tip()
-              .attr("class", "d3-tip")
-              .offset([-10, 0])
-              .html(function () {
-                return weatherText;
-              });
+            
 
             d3.select("#dot1").call(tip);
 
-            d3.select("#foreground")
-              .on("mouseover", () => {
-                if (
-                  _.isEqual(
-                    mySet1[mySet1.length - 1],
-                    mySet1[mySet1.length - 2]
-                  )
-                ) {
-                  tip.hide();
-                  console.log("hiii");
-                  d3.select("#dot1")
-                    .on("mouseover", tip.hide)
-                    .on("mouseout", tip.hide);
-                }
-              })
-
-              .on("mouseover", () => {
-                if (
-                  _.isEqual(
-                    mySet1[mySet1.length - 1],
-                    mySet1[mySet1.length - 2]
-                  )
-                ) {
-                  tip.hide;
-                  console.log("hiii");
-                }
-              });
-              var double=0;
-              $('#foreground').on('click dblclick',function(e){ 
-                console.log("double");double=1;tip.hide();
-                /*  Prevents default behaviour  */ 
-                e.preventDefault(); 
-                
-                /*  Prevents event bubbling  */ 
-                e.stopPropagation(); 
-                return; 
-               
-              }); 
-              if(double==0){
-              d3.select("#dot1")
+            d3.select("#dot1")
               .on("mouseover", tip.show)
-              .on("mouseout", tip.hide);}
+              .on("mouseout", tip.hide)
+              .on("click", () => {
+                console.log("[clicked]");
+              });
 
-            mySet1.push([...coord]);
+            var double=0;
+            $('#foreground').on('click dblclick',function(e){ 
+              console.log("double");double=1;tip.hide();
+              /*  Prevents default behaviour  */ 
+              e.preventDefault(); 
+              
+              /*  Prevents event bubbling  */ 
+              e.stopPropagation(); 
+              return; 
+             
+            }); 
+            if(double==0){
+            d3.select("#dot1")
+            .on("mouseover", tip.show)
+            .on("mouseout", tip.hide);}
+          mySet1.push([...coord]);
+          console.log(mySet1[mySet1.length - 1], mySet1[mySet1.length - 2]);
 
-            console.log(mySet1[mySet1.length - 1], mySet1[mySet1.length - 2]);
-            // .on("mouseleave", () => {
-            //   d3.select("#weather_picker_btn").classed("inactive", false);
-            // });
-          }
+          } 
           // else if (timeselected == 1) {
           //   // Append a new point
-          //   d3.select("#dot1").remove();
           //   d3.select("#foreground")
           //     .append("g")
           //     .append("path")
@@ -3304,16 +3268,16 @@ var forecastednum = 0;
 
           //   d3.select("#dot1")
           //     .on("mouseover", tip.show)
-          //     .on("mouseout", tip.hide)
 
+          //     .on("mouseout", tip.hide);
           //   // .on("mouseleave", () => {
           //   //   d3.select("#weather_picker_btn").classed("inactive", false);
           //   // });
           // }
-          console.log("timeselected", timeselected);
 
           return;
         }
+
         //////////////////////////////////////////////////////////////
 
         d3.select("#insert_point_blank").style("display", "none");
@@ -5151,7 +5115,7 @@ var forecastednum = 0;
     }
 
     // Throttled draw method helps with slow devices that would get overwhelmed by too many redraw events.
-    var REDRAW_WAIT = 50; // milliseconds
+    var REDRAW_WAIT = 0; // milliseconds
     var doDraw_throttled = _.throttle(doDraw, REDRAW_WAIT, { leading: false });
 
     function doDraw() {
@@ -5170,7 +5134,7 @@ var forecastednum = 0;
       move: function () {
         doDraw_throttled();
 
-        drawOverlay(fieldAgent.value(), "move");
+        // drawOverlay(fieldAgent.value(), "move");
 
         d3.select("#dot1").style("opacity", "0"); //weather picker dot opacity
         d3.select("#new_ship").style("opacity", "0"); //blinking (ship dot)
@@ -5760,15 +5724,23 @@ var forecastednum = 0;
    *         This function would simplify nicely.
    */
   function validityDate(grids) {
-    // When the active layer is considered "current", use its time as now, otherwise use current time as
-    // now (but rounded down to the nearest three-hour block).
-    var THREE_HOURS = 3 * HOUR;
-    var now = grids
-      ? grids.primaryGrid.date.getTime()
-      : // : Math.floor(Date.now() / THREE_HOURS) * THREE_HOURS;
-        datetime;
+    var now;
+
+    if(grids){
+      now = grids.primaryGrid.date.getTime();
+    }
+    else{
+        if(sessionStorage.getItem("date")){
+          now = sessionStorage.getItem("date");
+        }
+        else
+        now = datetime
+    }
+    
     var parts = configuration.get("date").split("/"); // yyyy/mm/dd or "current"
     var hhmm = configuration.get("hour");
+
+    
     return parts.length > 1
       ? Date.UTC(+parts[0], parts[1] - 1, +parts[2], +hhmm.substring(0, 2))
       : parts[0] === "current"
@@ -5782,6 +5754,10 @@ var forecastednum = 0;
   function showDate(grids) {
     var date = new Date(validityDate(grids)),
       isLocal = d3.select("#data-date").classed("local");
+    
+      sessionStorage.setItem("date", date);
+      console.log("[date]", date);
+
     var formatted = isLocal ? µ.toLocalISO(date) : µ.toUTCISO(date);
     d3.select("#data-date").text(formatted + " " + (isLocal ? "Local" : "UTC"));
     d3.select("#toggle-zone").text("⇄ " + (isLocal ? "UTC" : "Local"));
@@ -5959,6 +5935,7 @@ var forecastednum = 0;
         "highlighted",
         _.isEqual(_.pick(attr, keys), _.pick(newAttr, keys))
       );
+      // location.reload();
     });
   }
 
@@ -6075,7 +6052,6 @@ var forecastednum = 0;
         _.intersection(changed, ["date", "hour", "param", "surface", "level"])
           .length > 0
       ) {
-        console.log("[Rebuild required]");
         rebuildRequired = true;
       }
       // Build a new grid if the new overlay type is different from the current one.
@@ -6284,7 +6260,6 @@ var forecastednum = 0;
     });
 
     const change_date = (x) => {
-      console.log("[Change date]");
       var date_from_dom = document.getElementById("data-date").textContent;
       var [date, time] = date_from_dom.split(" ");
       var datetime;
@@ -6354,13 +6329,8 @@ var forecastednum = 0;
       ) {
         alert("Out of range : Data cannot be projected");
         return;
-      } else {
-        // window.location.href = `http://20.198.70.56:3000/?year=${y}&month=${m}&date=${d}&slot=${slot}`;
-        // window.location.href = `http://localhost:3000/?year=${y}&month=${m}&day=${d}&slot=${slot}`;
-        // location.reload();
-        // products.productsFor(configuration.attributes)
+      } else {        
         gridAgent.submit(buildGrids);
-
         // history.pushState("data", "", `http://localhost:3000/?year=${y}&month=${m}&day=${d}&slot=${slot}`)
       }
 
@@ -6463,12 +6433,6 @@ var forecastednum = 0;
 
           return;
         } else {
-          // window.location.href = `http://localhost:3000/?year=${y}&month=${m}&day=${d}&slot=${slot}`;
-          // history.pushState("data", "", `http://localhost:3000/?year=${y}&month=${m}&day=${d}&slot=${slot}`)
-          // window.location.href = `http://20.198.70.56:3000/?year=${y}&month=${m}&date=${d}&slot=${slot}`;
-          // location.reload();
-
-          // products.productsFor(configuration.attributes)
           gridAgent.submit(buildGrids);
         }
 
@@ -6567,12 +6531,26 @@ var forecastednum = 0;
 })();
 
 
-// var d3_behavior_zoomInfinity = [ 0, Infinity ];
-//   var d3_behavior_zoomDelta, d3_behavior_zoomWheel = "onwheel" in d3_document ? (d3_behavior_zoomDelta = function() {
-//     return -d3.event.deltaY * (d3.event.deltaMode ? 120 : 1);
-//   }, "wheel") : "onmousewheel" in d3_document ? (d3_behavior_zoomDelta = function() {
-//     return d3.event.wheelDelta;
-//   }, "mousewheel") : (d3_behavior_zoomDelta = function() {
-//     return -d3.event.detail;
-//   }, "MozMousePixelScroll");
-  
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Zip reading implimentation
+
+  // JSZipUtils.getBinaryContent(
+  //   `./current/current.zip`,
+  //   function (err, data) {
+  //     if (err) {
+  //       throw err; // or handle err
+  //     }
+
+  //     console.log("[JSzip utils]", data);
+
+  //     JSZip.loadAsync(data).then(function (zip) {
+  //       Object.keys(zip.files).forEach(function (filename) {
+  //         zip.files[filename].async("string").then(function (fileData) {
+  //           console.log(JSON.parse(fileData));
+  //           file = JSON.parse(fileData); // These are your file contents
+  //         });
+  //       });
+  //     });
+  //   }
+  // );
